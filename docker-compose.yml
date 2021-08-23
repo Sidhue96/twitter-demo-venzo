@@ -1,0 +1,32 @@
+version: '3.4'
+
+services:
+  mongo_db:
+    image: mongo:latest
+    volumes: 
+      - db-data:/var/lib/mongo/data
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: username
+      MONGO_INITDB_ROOT_PASSWORD: password
+    restart: always
+    networks: 
+      - twitternet
+  twitter:
+    image: twitter
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    restart: always
+    ports:
+      - 80:8080
+      - 443:443
+    networks:
+      - twitternet
+    command: ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
+    env_file:
+      - .env
+networks:
+  twitternet:
+    driver: bridge
+volumes: 
+  db-data:
