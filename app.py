@@ -136,3 +136,37 @@ def sync_tweets():
         'body': json.dumps(True)
     }
 
+@app.route("/search", methods=["GET"])
+@cross_origin()
+def search_tweets():
+    if not twitter.authorized:
+        return redirect(url_for("twitter.login"))
+    
+    user_settings = twitter.get("account/settings.json")
+    screen_name = user_settings.json()['screen_name']
+    mclient = pymongo.MongoClient(os.environ['MONGO_CLIENT'])
+    mdb = mclient[os.environ['DB_NAME']]
+    count = mdb[screen_name].count()
+    query = request.args['query'] if 'query' in request.args else ''
+    query = query.lower().strip()
+    if count == 0 or len(query) == 0:
+        return {
+            'statusCode': 200,
+            'body': json.dumps({})
+        }
+    
+    resp = list(mdb[screen_name].find({"text" : {
+        "$regex": "{query}".format(query=query), "$options": "i"
+    }}, {'_id': 0, 'created_at_dt': 0}))
+
+    if 'view' in request.args and request.args['view'] == 'table':
+        df = pd.DataFrame(resp)
+        return df.to_html()
+        
+    return {
+        'statusCode': 200,
+        'body': resp
+    }
+
+
+
